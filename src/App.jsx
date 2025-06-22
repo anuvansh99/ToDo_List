@@ -1,122 +1,153 @@
-import { useEffect, useState } from 'react'
-import Navbar from './components/Navbar'
+import { useEffect, useRef, useState } from 'react';
+import Navbar from './components/Navbar';
 import { v4 as uuidv4 } from 'uuid';
-import { MdDelete } from "react-icons/md";
-import { MdEdit } from "react-icons/md";
+import { MdDelete, MdEdit } from "react-icons/md";
+import './App.css'; // Import the CSS file
 
 function App() {
-  const [todo, settodo] = useState("")
-  const [todos, settodos] = useState([])
+  const [todo, settodo] = useState("");
+  const [todos, settodos] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const inputRef = useRef(null);
 
-    // useEffect(() => {
-    //     saveToLS();
-    // }, [todos]);
-
+  // Load todos from local storage on mount
   useEffect(() => {
     const exist = localStorage.getItem("todos");
     if (exist) {
       const storedTodos = JSON.parse(exist);
-      settodos(storedTodos); // Update state with stored todos
-      // console.log(storedTodos);
+      settodos(storedTodos);
     }
-  }, [])
-  
+  }, []);
 
-  const saveToLS=(param)=>{
-    localStorage.setItem("todos", JSON.stringify(param))
-    console.log("printing local storage", localStorage);
-  }
+  // Save todos to local storage whenever they change
+  useEffect(() => {
+    localStorage.setItem("todos", JSON.stringify(todos));
+  }, [todos]);
+
+  // Focus input when editing
+  useEffect(() => {
+    if (inputRef.current) inputRef.current.focus();
+  }, [editingId]);
 
   const handleEdit = (e, id) => {
-    let t = todos.filter(i => i.id === id);
-    settodo(t[0].todo);
-    let newTodos = todos.filter(item => item.id !== id);
-    settodos(newTodos);
-    saveToLS();
-};
+    let t = todos.find(i => i.id === id);
+    settodo(t.todo);
+    setEditingId(id);
+    if (inputRef.current) inputRef.current.focus();
+  };
 
+  const handleDelete = (e, id) => {
+    settodos(todos.filter(item => item.id !== id));
+  };
 
-  const handleDelete=(e, id)=>{
-    
-    let newtodos=todos.filter(item=>{
-      return item.id !== id;
-    });
-    settodos(newtodos);
-    saveToLS();
-  }
-  const handleClear=()=>{
+  const handleClear = () => {
     settodos([]);
-    saveToLS();
-  }
+  };
 
-  const handleCheckBox=(e)=>{
-    let id=e.target.name;
-    let index=todos.findIndex(item=>{
-      return item.id===id;
-    })
-    let newtodos=[...todos];
-    newtodos[index].isCompleted=!newtodos[index].isCompleted;
-    settodos(newtodos);
-    saveToLS();
-  }
+  const handleCheckBox = (e) => {
+    let id = e.target.name;
+    settodos(todos =>
+      todos.map(item =>
+        item.id === id
+          ? { ...item, isCompleted: !item.isCompleted }
+          : item
+      )
+    );
+  };
 
-  const handleAdd=()=>{
-      settodos([...todos, {id: uuidv4(), todo, isCompleted: false}])
-      console.log(todos);
-      settodo('');
-      saveToLS(todos);
-  }
+  const handleAddOrEdit = () => {
+    if (todo.trim() === "") return;
+    if (editingId) {
+      settodos(todos =>
+        todos.map(item =>
+          item.id === editingId ? { ...item, todo } : item
+        )
+      );
+      setEditingId(null);
+    } else {
+      settodos([...todos, { id: uuidv4(), todo, isCompleted: false }]);
+    }
+    settodo('');
+  };
 
-  // const handleEnter=(event)=>{
-  //   if(event.keyCode===13){
-  //     const newTodo = { id: uuidv4(), todo: todo, isCompleted: false };
-  //   settodos([...todos, newTodo]);
-  //   settodo('');
-  //   saveToLS();
-  //   }
-    
-// }
-
-  const handleChange=(e)=>{
+  const handleChange = (e) => {
     settodo(e.target.value);
-  }
+  };
+
+  const handleEnter = (event) => {
+    if (event.key === "Enter") {
+      handleAddOrEdit();
+    }
+  };
+
   return (
     <>
-    <Navbar/>
-      <div className="box mx-auto my-5 bg-slate-300 p-5 py-1 rounded-xl min-h-[80vh]">
-        <div className="addtodo">
-          <h2 className="text-lg font-bold">Add a ToDo</h2>
-          <input onChange={handleChange} type="text" className='w-1/2 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 text-sm focus:ring-blue-500 focus:border-blue-500 p-1.5' value={todo}/>
-          <button onClick={handleAdd} className='buttons bg-slate-700 hover:bg-slate-900 text-white p-2 rounded-md mx-6 text-sm'>Save</button>
-        </div>
-        <br />
-        <div className="cap flex">
-        <h2 className='text-xl font-bold'>Your ToDo's</h2>
-        <button className='buttons bg-slate-700 hover:bg-slate-900 text-white p-2 rounded-md mx-20 text-sm' onClick={handleClear}>Clear</button>
-        </div>
-        <br />
-
-        <div className="todos">
-          {todos.length===0 && <div className='m-5'>No Todo's to Display</div>}
-          {todos.map(item=>{
-            return <div key={item.id} className="todo flex my-3 justify-between w-1/3">
-              <div className='flex gap-5'>
-              <input name={item.id} onChange={handleCheckBox} type="checkbox" value={item.isCompleted} id="" />
-              <div className={item.isCompleted?"line-through":""}>{item.todo}</div>
-              </div>
-              
-            
-            <div className="flex h-full">
-              <button onClick={(e)=>{handleEdit(e, item.id)}} className='buttons bg-slate-700 hover:bg-slate-900 text-white p-2 rounded-md mx-2 text-sm'><MdEdit /></button>
-              <button onClick={(e)=>{handleDelete(e, item.id)}} className='buttons bg-slate-700 hover:bg-slate-900 text-white p-2 rounded-md mx-2 text-sm'><MdDelete /></button>
-            </div>
+      <Navbar />
+      <div className="todo-app-container">
+        <div className="addtodo modern-card">
+          <h2 className="section-title">Add a ToDo</h2>
+          <div className="input-row">
+            <input
+              ref={inputRef}
+              onChange={handleChange}
+              type="text"
+              className="todo-input"
+              value={todo}
+              onKeyDown={handleEnter}
+              placeholder="What's next?"
+            />
+            <button
+              onClick={handleAddOrEdit}
+              className="primary-btn"
+            >
+              {editingId ? "Update" : "Add"}
+            </button>
           </div>
-          })}
-          
+        </div>
+
+        <div className="todo-list-header">
+          <h2 className="section-title">Your ToDo's</h2>
+          <button className="secondary-btn" onClick={handleClear}>Clear All</button>
+        </div>
+
+        <div className="todos-list">
+          {todos.length === 0 && <div className='no-todos'>No Todo's to Display</div>}
+          {todos.map(item => (
+            <div key={item.id} className={`todo-item modern-card animate-slide-in`}>
+              <label className="checkbox-label">
+                <input
+                  name={item.id}
+                  onChange={handleCheckBox}
+                  type="checkbox"
+                  checked={item.isCompleted}
+                />
+                <span className="custom-checkbox"></span>
+              </label>
+              <div className={`todo-text ${item.isCompleted ? "completed" : ""}`}>
+                {item.todo}
+              </div>
+              <div className="action-btns">
+                <button
+                  onClick={(e) => { handleEdit(e, item.id) }}
+                  className='icon-btn'
+                  title="Edit"
+                >
+                  <MdEdit />
+                </button>
+                <button
+                  onClick={(e) => { handleDelete(e, item.id) }}
+                  className='icon-btn'
+                  title="Delete"
+                >
+                  <MdDelete />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
